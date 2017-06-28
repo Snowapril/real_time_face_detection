@@ -1,32 +1,36 @@
 import tensorflow as tf
-from model import SimpleConvModel
-from utils import *
+import numpy as np
+from model import SimpleModel
+from utils import load_dataset, image_augmentation, split_data
+
 
 tf.set_random_seed(777)
 
 def main(FLAG):
-    Model = SimpleConvModel(FLAG.input_dim, FLAG.hidden_dim, FLAG.output_dim, optimizer=tf.train.RMSPropOptimizer(FLAG.learning_rate))
+    Model = SimpleModel(FLAG.input_dim, FLAG.hidden_dim, FLAG.output_dim, optimizer=tf.train.RMSPropOptimizer(FLAG.learning_rate))
 
     image, label = load_dataset()
-    image, label = image_augmentation(image, label)
-    label = label / 255.
+    image, label = image_augmentation(image, label, horizon_flip=True, control_brightness=True)
+    label = label / 96.
+    (train_X, train_y), (valid_X, valid_y), (test_X, test_y) = split_data(image, label)
 
     if FLAG.Mode == "validation":
-        (train_X, train_y), (valid_X, valid_y), (test_X, test_y) = split_data(image, label)
         lr_list = 10 ** np.random.uniform(-6, -2, 20)
         Model.validation(train_X, train_y, valid_X, valid_y, lr_list)
-    else:
-        (train_X, train_y), _, (test_X, test_y) = split_data(image, label, 0.9, 0.0, 0.1)
-        Model.train(train_X, train_y, FLAG.batch_size, FLAG.Epoch, FLAG.save_graph, FLAG.save_model)
-        print(Model.get_accuracy(test_X, test_y))
-        Model.predict(image[123])
+    elif FLAG.Mode == "train":
+        Model.train(train_X, train_y, valid_X, valid_y, FLAG.batch_size, FLAG.Epoch, FLAG.save_graph, FLAG.save_model)
+
+        pred_Y = Model.predict(test_X[123])
+        print(pred_Y)
+        print(test_y[123])
+        print(np.mean(np.square( pred_Y - test_y[123] )))
 
 def arg_flags():
     flags = tf.app.flags
 
-    flags.DEFINE_integer("Epoch", 15, "Total Epoch to train model")
-    flags.DEFINE_integer("batch_size", 70, "batch size to train model")
-    flags.DEFINE_integer("input_dim", 96*96, "input layer's dimension")
+    flags.DEFINE_integer("Epoch", 150, "Total Epoch to train model")
+    flags.DEFINE_integer("batch_size", 100 , "batch size to train model")
+    flags.DEFINE_integer("input_dim", 96, "input layer's dimension")
     flags.DEFINE_integer("hidden_dim", 64, "hidden layer's dimension")
     flags.DEFINE_integer("output_dim", 30, "output layer's dimension")
     flags.DEFINE_integer("Width", 96, "Input Image Width")

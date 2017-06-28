@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
 import os
-import matplotlib.pyplot as plt
 import matplotlib
+import tensorflow as tf
+from PIL import Image, ImageDraw
 
 def load_dataset():
     if(not os.path.exists("./dataset/training.csv")):
@@ -132,7 +133,56 @@ def image_augmentation(image, label, horizon_flip=True, control_brightness=True)
 
         label = np.concatenate((label, brightened_label, darkened_label))
 
+    image = image / 255.
+
     return image, label
 
 def normalize(input_data):
     pass
+
+def my_Model(input_x, input_dim, hidden_dim, output_dim , keep_prob=0.8 ,  name="MyModel"):
+
+        W1 = tf.get_variable(name+"_w1", shape=[input_dim*input_dim, hidden_dim], initializer=tf.truncated_normal_initializer(stddev=2/np.sqrt(input_dim)))
+        b1 = tf.get_variable(name+"_b1", shape=[hidden_dim], initializer=tf.constant_initializer(0.))
+
+        c1 = tf.matmul(input_x, W1) + b1
+        c1 = tf.nn.relu(c1)
+        c1 = tf.nn.dropout(c1, keep_prob)
+
+        W2 = tf.get_variable(name+"_w2", shape=[hidden_dim, hidden_dim*2], initializer=tf.truncated_normal_initializer(stddev=2/np.sqrt(hidden_dim)))
+        b2 = tf.get_variable(name+"_b2", shape=[hidden_dim*2], initializer=tf.constant_initializer(0.))
+
+        c2 = tf.matmul(c1, W2) + b2
+        c2 = tf.nn.relu(c2)
+        c2 = tf.nn.dropout(c2, keep_prob)
+
+        W3 = tf.get_variable(name+"_w3", shape=[hidden_dim*2, hidden_dim*4], initializer=tf.truncated_normal_initializer(stddev=2/np.sqrt(hidden_dim*2)))
+        b3 = tf.get_variable(name+"_b3", shape=[hidden_dim*4], initializer=tf.constant_initializer(0.))
+
+        c3 = tf.matmul(c2, W3) + b3
+        c3 = tf.nn.relu(c3)
+        c3 = tf.nn.dropout(c3, keep_prob)
+
+        W4 = tf.get_variable(name+"_w4", shape=[hidden_dim*4, hidden_dim*8], initializer=tf.truncated_normal_initializer(stddev=2/np.sqrt(hidden_dim*4)))
+        b4 = tf.get_variable(name+"_b4", shape=[hidden_dim*8], initializer=tf.constant_initializer(0.))
+
+        c4 = tf.matmul(c3, W4) + b4
+        c4 = tf.nn.relu(c4)
+        c4 = tf.nn.dropout(c4, keep_prob)
+
+        W5 = tf.get_variable(name+"_w5", shape=[hidden_dim*8, output_dim], initializer=tf.truncated_normal_initializer(stddev=2/np.sqrt(hidden_dim*8)))
+        b5 = tf.get_variable(name+"_b5", shape=[output_dim], initializer=tf.constant_initializer(0.))
+
+        logits = tf.matmul(c4, W5) + b5
+
+        return logits
+
+def draw_features_point_on_image(image, features, src_width, src_height, rgba=(50,255,50,255), depth=3, point_thickness=3):
+    img = Image.fromarray(image)
+    draw = ImageDraw.Draw(img)
+
+    for feature in features:
+        for x, y in feature.reshape(-1,2):
+            draw.ellipse([x, y, x+point_thickness, y+point_thickness], fill=rgba)
+
+    return np.array(img.getdata(), np.uint8).reshape(src_height, src_width, depth)

@@ -1,2 +1,2 @@
-model_checkpoint_path: "simpleConvModel.ckpt"
-all_model_checkpoint_paths: "simpleConvModel.ckpt"
+model_checkpoint_path: "simpleModel.ckpt"
+all_model_checkpoint_paths: "simpleModel.ckpt"
